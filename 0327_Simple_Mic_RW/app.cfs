@@ -1,0 +1,464 @@
+// ----------------------------------------------------------------------------
+// Copyright (c) 2013 Semiconductor Components Industries, LLC
+// (d/b/a ON Semiconductor). All Rights Reserved.
+//
+// This code is the property of ON Semiconductor and may not be redistributed
+// in any form without prior written permission from ON Semiconductor. The
+// terms of use and warranty for this code are covered by contractual
+// agreements between ON Semiconductor and the licensee.
+// ----------------------------------------------------------------------------
+// app.cfs
+// - Main application-level file
+// ----------------------------------------------------------------------------
+// $Revision: 1.6 $
+// $Date: 2013/05/16 15:30:54 $
+// ----------------------------------------------------------------------------
+
+#include <sk4_sys.cfi>
+#include <sk4_syslib.cfi>
+//=========================
+//NEW:
+#include <sk4_math.cfi>
+//=========================
+#include "app.cfi"
+
+// ----------------------------------------------------------------------------
+// Application Version
+// ----------------------------------------------------------------------------
+
+// Set the global assembler symbol App_Version equal to the
+// pre-processor define APP_VERSION that was defined in app.cfi
+.global App_Version
+    .equ App_Version, APP_VERSION
+
+// ----------------------------------------------------------------------------
+// Main Program
+// ----------------------------------------------------------------------------
+    Sys_Mem_Start_Absolute_Segment(main, SYS_MEMSPACE_P, D_PMEM_BASE)
+
+.global main
+main:
+
+    // Clear status register on the CFX to disable interrupts, saturation,
+    // rounding, etc.
+    load sr, 0
+
+    goto start_app
+
+    // Put the application version in P memory at address 0x8002
+.data App_Version
+
+
+start_app:
+
+    // Initialize stack pointer and initialize the hardware
+    call.1d Initialize
+    Sys_CFX_InitStack(X_STACK_BOTTOM)   // [ds]
+
+    store p[D_SPI_DATA], 0
+    Sys_SPI_Write(8)
+    Sys_SPI_WaitDone
+    
+    load x1, 0xAA
+    store p[D_UART_DATA], x1
+    
+    //===========================================================
+    // NEW:
+    store x[X_FILTER_OUT], 0              // Initial filter_out_start 0
+    //===========================================================
+    
+    
+waitloop:
+
+    // Disable interrupts before checking flags
+    Sys_Int_Master_Disable
+
+    // Check the FIFO 0 done flag
+    load x0, x[X_FIFO_0_DONE]
+    cmp x0, 1 ||| nop
+    goto FIFO_0_done if eq
+
+////------------------------------------------------
+//    //
+//    load x0, x[X_SPI_FLAG]
+//    cmp x0, 1 ||| nop
+//    goto Next_loop if ne
+//    
+//    store x[X_SPI_FLAG], 0
+////------------------------------------------------
+//
+//    // Check the SPI done flag
+//    load x0, x[X_SPI_DONE]
+//    cmp x0, 1 ||| nop
+//    goto SPI_done if eq
+    
+//    // Check the UART done flag
+//    load x0, x[X_UART_DONE]
+//    cmp x0, 1 ||| nop
+//    goto UART_done if eq
+
+// Henry
+Next_loop:    
+    // Refresh the watchdog before going to sleep
+    Sys_Watchdog_Refresh
+
+    // Sleep until an interrupt is received.
+    // The interrupt controller will wake us up if any enabled interrupt
+    // is pending, even though the master interrupt enable is disabled at
+    // this point (see the Hardware Reference Manual).
+    sleep
+
+    // Re-enable interrupts using the master enable bit. This will
+    // allow us to service and acknowledge the interrupt which caused
+    // us to wake up.
+    Sys_Int_Master_Enable
+
+    // Loop back to see which interrupt has occurred
+    goto waitloop
+
+// ----------------------------------------------------------------------------
+// FIFO 0 done
+// ----------------------------------------------------------------------------
+FIFO_0_done:
+
+    // Clear the flag
+    store x[X_FIFO_0_DONE], 0
+
+    // Re-enable interrupts
+    Sys_Int_Master_Enable
+
+    //*******************************************************************
+    //*******************************************************************
+    //Edit your AGC codes from here
+    // Launch the function to copy data from FIFO A0_0 to FIFO B0_0
+    // mod
+    // call FIFO_Copy
+
+    call AGC_filter1
+    
+    //Send out SPI data
+//    store x[X_SPI_FLAG], 1
+    call SPI_Transmit
+    // Branch back to the top of the main loop
+    goto waitloop
+
+// ----------------------------------------------------------------------------
+// Function:       FIFO_Copy
+// Description:    Copies data from input FIFO to output FIFO.
+// Clock cycles:   22
+// Modifies:       xp0, xp1, x0
+// Assumptions:    None
+// ----------------------------------------------------------------------------
+// Control Registers:
+// ----------------------------------------------------------------------------
+// Reads:          None
+// Writes:         None
+// ----------------------------------------------------------------------------
+FIFO_Copy:
+
+    // Copy the block of samples from FIFO A0_0 to FIFO B0_0
+    loop.2d BLOCK_SIZE, end_copy_A0_0_B0_0_loop
+
+    // Load xp0 pointer register with the start address in the A0_0 FIFO
+    load xp0, X_INPUT_FIFO_ADDR                     // [ds1]
+    // Load xp1 pointer register with the start address in the B0_0 FIFO
+    load xp1, X_OUTPUT_FIFO_ADDR                    // [ds2]
+
+    end_copy_A0_0_B0_0_loop:
+        load x0, x[xp0++] >>> store x[xp1++], x0    // Copy block of samples
+
+    // Return from function call
+    return
+
+// ============================================================================
+// NEW: AGC_filter1 for y(n)=coeff*x(n)+(1-coeff)*y(n-1)
+// ============================================================================
+AGC_filter1:
+
+    // Start AGC proccessing the block of samples from FIFO A0_0 to FIFO B0_0
+    loop.2d BLOCK_SIZE, end_AGC_loop
+    
+    // Load xp0 pointer register with the start address in the A0_0 FIFO
+    load xp4, X_INPUT_FIFO_ADDR      // [ds1]
+    // Load xp1 pointer register with the start address in the B0_0 FIFO
+    load xp1, X_OUTPUT_FIFO_ADDR     // [ds2]
+    
+//    load xp2, 0xE000
+
+    //*******************************************************************
+    //============ STEP (1) Signal: Linear-dB Conversion=================
+    
+    
+    
+//  comment temparory
+//    cmp a0, 0 ||| nop
+//    goto setZeroValue if ge
+    
+    // ? When sample = 0?
+//    cmp a0, 0 ||| nop
+//    goto CVT if ne
+    
+//    return
+  
+//setZeroValue:
+//    
+//    return
+
+
+//CVT:
+//    load a0, 0
+    // Calculate absolute value of xp0 pointer register
+    nop ||| load a0, x[xp4]
+    //load a0, 0x2C0000
+    abs a0, a0 ||| nop              
+    
+    // Convert absolute value to dB
+    MATHLIB_RMS_DB10_frac48_m8p16
+     // Influence a0, x0, y0, xp0
+     
+
+    //*******************************************************************
+    //============ STEP (2) Gain Computer ===============================
+    // Pass through Static Characteristic
+
+    // Compare signal's dB and threshold
+    nop ||| move x0, a0.h 
+    store x[X_dB], x0
+    store x[X_SC], x0 
+    // load x1, THD
+    Sys_Reg_m8p16( x1, -300000000 )     //THD
+
+    cmp x0, x1 ||| nop 
+    goto MAP if lt
+    
+    // DIVISION
+    sub a0, x0, x1 ||| nop
+    Sys_Reg_m8p16( x0, 50000000 )       //RATIO
+    
+    MATHLIB_DIVIDE_m24p24
+    
+    MATHLIB_CONV_m24p24_fl8n16          // a0...a0.h, influence a0, x0, y0
+    MATHLIB_CONV_fl8n16_m8p16           // a0.h...a0.h, influence a0, x0
+
+    Sys_Reg_m8p16( x1, -300000000 )     //THD
+    nop ||| move x0, a0.h
+    add x0, x1, x0 ||| nop              // negative + if x0 negative?
+    store x[X_SC], x0               
+    
+MAP:
+    load x0, x[X_dB]
+    load x1, x[X_SC]
+    sub a0, x0, x1 ||| nop              // computed gain 
+
+    //*******************************************************************
+    //============ STEP (3) Gain Smoothing ==============================
+    // call SMOOTH
+    load xp2, X_FILTER_OUT 
+    // nop ||| store x[xp2], a0.h
+    nop ||| load x0, x[xp2]
+    nop
+    Sys_Reg_frac24(x0, 271000)      // [ds] Set alpha to 0.0271 
+    // Influence none regs
+    
+    load xp3, 0xFF00                // [ds] Set piointer xp3 to X:0xFF00
+    nop ||| store x[xp3++], x0 
+   
+    Sys_Reg_frac24(x0, 6864)        // [ds] Set beta to 0.0006864
+
+    nop ||| store x[xp3], x0
+    load xp3, 0xFF00 
+ 
+    MATHLIB_ATTACK_RELEASE(xp2, xp3) // 24-bit fixed-point format
+
+    // Influence a0, x0, x1, y0
+    nop ||| store x[xp2], a0.h               // smoothed gain
+    
+    //*******************************************************************
+    //============ STEP (4) Gain: dB-Linear Conversion ==================
+    // CALL Gain_db2lin
+    neg a0, a0 ||| nop
+    
+    MATHLIB_DB10_RMS_m8p16_frac48
+    // Influence a0, x0, y0, xp0
+
+    //*******************************************************************
+    //============ STEP (5) Output: Input * Linear Gain =================
+    
+    load x0, x[xp4++] >>> move y0, a0.h
+    mul b0, x0, y0 ||| nop
+    nop
+    nop ||| store x[xp1++], b0
+    
+end_AGC_loop:
+    nop   
+
+// 
+//-----------------------------------------------------------------------    
+//SIGNAL_lin2db: 
+//    
+//    //load xp0, xp1                    // [ds1]    
+//    
+//    load xp1, X_OUTPUT_FIFO_ADDR     // [ds2]
+//    
+//    MATHLIB_RMS_DB10_VEC_frac48_m8p16(xp0, xp1, 64)
+//    
+//    return
+////-----------------------------------------------------------------------
+////Static_char£»
+//
+//    
+//
+////-----------------------------------------------------------------------    
+//SMOOTH: 
+//    
+//    // Initialize y(n-1) to zero for all channels    
+//    loop.2d 64, Init_Output_Label    // Set loop to repeat 64 times for every 4 ms
+//    load xp1, 0xD000                 // Set pointer xp1 to X: 0xD000
+//    nop
+//    Init_Output_Label:
+//        nop ||| clr x[xp1++]         // Clear the previous output y(n-1)
+//        
+//    // Initialize alpha
+//    loop.2d 64, Alpha_Init_Label     // Set loop to repeat 64 times fpr every 4 ms
+//    Sys_Reg_frac24(x0, 0271000)      // [ds] Set alpha to 0.0271
+//    load xp2, 0x0FF0                 // [ds] Set piointer xp2 to X:0x0FF0
+//                                     //      (first alpha)
+//    Alpha_Init_Label:
+//        nop ||| store x[xp2+=2], x0  // Set alpha in memory 
+//        
+//    // Initialize beta
+//    loop.2d 64, Beta_Init_Label      // Set loop to repeat 64 times fpr every 4 ms
+//    Sys_Reg_frac24(x0, 0006864)      // [ds] Set beta to 0.0006864
+//    load xp2, 0x0FF1                 // [ds] Set piointer xp2 to X:0x0FF1
+//                                     //      (first beta)
+//    Beta_Init_Label:
+//        nop ||| store x[xp2+=2], x0  // Set beta in memory 
+//        
+//    // Set address registers and run macros
+//    load xp0, 0xC000                 // Set pointer xp0: input vector x(n)
+//    load xp1, 0xD000                 // Set pointer xp1: output vector y(n-1)
+//    load xp2, 0x0FF0                 // Set pointer xp2: alpha and beta
+//    MATHLIB_ATTACK_RELEASE_VEC(XP0, XP1, XP2, 64)    // Call the macro
+//    
+//    return
+////-----------------------------------------------------------------------    
+////Gain_db2lin:
+//
+//
+//=============================================================================
+// AGC_filter1 END
+//=============================================================================
+
+// ----------------------------------------------------------------------------
+// SPI done
+// ----------------------------------------------------------------------------
+SPI_done:
+
+    // Clear the flag
+    store x[X_SPI_DONE], 0
+
+    // Re-enable interrupts
+    Sys_Int_Master_Enable
+
+    // Launch UART_Transmit
+    call SPI_Transmit
+
+    // Branch back to the top of the main loop
+    goto waitloop
+
+
+// ----------------------------------------------------------------------------
+// Function:       UART_Transmit
+// Description:    Transmit data to D_UART_DATA.
+
+// ----------------------------------------------------------------------------
+// Control Registers:
+// ----------------------------------------------------------------------------
+// Reads:          None
+// Writes:         None
+// ----------------------------------------------------------------------------
+SPI_Transmit:
+    
+    Sys_SPI_CS_Low
+    load x1, 0xAAAAAA 
+    store p[D_SPI_DATA], x1
+    Sys_SPI_Write(16)
+    Sys_SPI_WaitDone
+//    Sys_SPI_CS_High
+  
+    //================================================
+    // Send BLOCK_SIZE upadate samples each time
+    loop.2d BLOCK_SIZE, end_update_loop
+    load xp0, X_INPUT_FIFO_ADDR+ BLOCK_SIZE -1
+    load xp1, X_OUTPUT_FIFO_ADDR+ BLOCK_SIZE -1
+    
+        nop ||| load x0, x[xp0--]
+        shra x0, 2 ||| nop
+        store p[D_SPI_DATA], x0
+        Sys_SPI_Write(16)
+        Sys_SPI_WaitDone
+ 
+        nop ||| load x0, x[xp1--]
+        shra x0, 2 ||| nop
+        store p[D_SPI_DATA], x0
+        Sys_SPI_Write(16)
+        Sys_SPI_WaitDone 
+              
+        nop
+        
+end_update_loop:
+    nop 
+
+    Sys_SPI_CS_High
+       
+    // Return from function call
+    return
+// ----------------------------------------------------------------------------
+// UART done
+// ----------------------------------------------------------------------------
+UART_done:
+
+    // Clear the flag
+    store x[X_UART_DONE], 0
+
+    // Re-enable interrupts
+    Sys_Int_Master_Enable
+
+    // Launch UART_Transmit
+    call UART_Transmit
+    
+    // Branch back to the top of the main loop
+    goto waitloop
+
+
+// ----------------------------------------------------------------------------
+// Function:       UART_Transmit
+// Description:    Transmit data to D_UART_DATA.
+
+// ----------------------------------------------------------------------------
+// Control Registers:
+// ----------------------------------------------------------------------------
+// Reads:          None
+// Writes:         None
+// ----------------------------------------------------------------------------
+UART_Transmit:
+    
+//    load x1, 0xAA
+//    store p[D_UART_DATA], x1    
+    
+    load xp0, X_INPUT_FIFO_0_ADDR+7
+    nop ||| load x1, x[xp0]
+    cmp x1, 0 ||| nop
+    goto uart_reg if gt
+    load x1, 0
+//    abs x1, x1 ||| nop
+//    shll x1, 2 ||| nop
+     
+
+uart_reg:
+    shra x1, 3 ||| nop
+    store p[D_UART_DATA], x1    
+
+    //goto U ART_Transmit
+    // Return from function call
+    return

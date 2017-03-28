@@ -1,0 +1,108 @@
+// ----------------------------------------------------------------------------
+// Copyright (c) 2013 Semiconductor Components Industries, LLC
+// (d/b/a ON Semiconductor). All Rights Reserved.
+//
+// This code is the property of ON Semiconductor and may not be redistributed
+// in any form without prior written permission from ON Semiconductor. The
+// terms of use and warranty for this code are covered by contractual
+// agreements between ON Semiconductor and the licensee.
+// ----------------------------------------------------------------------------
+// app_memory.cfs
+// - Application-level memory allocations
+// ----------------------------------------------------------------------------
+// $Revision: 1.5 $
+// $Date: 2013/02/15 17:32:15 $
+// ----------------------------------------------------------------------------
+
+#include <sk4_sys.cfi>
+#include "app.cfi"
+
+    //
+    // Start an absolute segment for the stack
+    //
+    Sys_Mem_Start_Absolute_Segment(X_System_Stack_Memory_Reserved, \
+                                   SYS_MEMSPACE_X,                 \
+                                   (D_XMEM_TOP - STACK_SIZE + 1))
+    // Allocate memory for the stack
+    Sys_Mem_Reserve(X_STACK_BOTTOM, STACK_SIZE)
+
+
+
+
+
+    //
+    // Start a relocatable segment for variables in X-memory
+    //
+    Sys_Mem_Start_Segment(X_System_Memory_Reserved, \
+                          SYS_MEMSPACE_X)
+    // Initialize X_FIFO_0_DONE to 0
+    Sys_Mem_Reserve_Init(X_FIFO_0_DONE, 1, 0)
+    //Initialize X_SPI_DONE to 0    
+    Sys_Mem_Reserve_Init(X_SPI_DONE, 1, 0)
+    //Initialize X_UART_DONE to 0    
+    Sys_Mem_Reserve_Init(X_UART_DONE, 1, 0)
+    //Initialize X_UART_DONE to 0    
+    Sys_Mem_Reserve_Init(X_SPI_FLAG, 1, 0)
+
+    //==============================================================
+    // NEW:
+    Sys_Mem_Reserve_Init(X_dB, 1, 0)
+    Sys_Mem_Reserve_Init(X_SC, 1, 0)
+//==================================================================
+//NEW:
+//    // Start an absolute segment for FILTER_OUT
+//    Sys_Mem_Start_Absolute_Segment(X_FILTER_OUT_Memory_Reserved, \
+//                                   SYS_MEMSPACE_X,              \
+//                                   X_FILTER_OUT_ADDR)
+//    // Allocate memory for FILTER_OUT
+//    Sys_Mem_Reserve_Init_Default(X_FILTER_OUT, 100, 0)
+//==================================================================
+
+    // Note: Use the HCT_FIFO_Reserve_Mem macro generated
+    //       from the HCT when using the HEAR to allocate
+    //       memory for FIFOs.
+
+    //
+    // Start an absolute segment for FIFO A0_0
+    //
+    Sys_Mem_Start_Absolute_Segment(X_FIFO_A0_0_Memory_Reserved, \
+                                   SYS_MEMSPACE_X,              \
+                                   X_INPUT_FIFO_ADDR)
+    // Allocate memory for FIFO A0_0
+    Sys_Mem_Reserve(X_FIFO_A0_0_BASE, FIFO_A0_0_LENGTH)
+
+    //
+    // Start an absolute segment for FIFO A0_1
+    //
+    Sys_Mem_Start_Absolute_Segment(X_FIFO_A0_1_Memory_Reserved, \
+                                   SYS_MEMSPACE_X,              \
+                                   X_INPUT_FIFO_1_ADDR)
+    // Allocate memory for FIFO A0_0
+    Sys_Mem_Reserve(X_FIFO_A0_1_BASE, FIFO_A0_1_LENGTH)
+    
+    //
+    // Start an absolute segment for FIFO B0_0
+    //
+    Sys_Mem_Start_Absolute_Segment(X_FIFO_B0_0_Memory_Reserved, \
+                                   SYS_MEMSPACE_X,              \
+                                   X_OUTPUT_FIFO_ADDR)
+    // Allocate memory for FIFO B0_0
+    Sys_Mem_Reserve(X_FIFO_B0_0_BASE, FIFO_B0_0_LENGTH)
+
+
+    //
+    // Start a relocatable segment for variables in Y-memory
+    //
+    Sys_Mem_Start_Segment(Y_System_Memory_Reserved, \
+                          SYS_MEMSPACE_Y)
+
+    // Allocate memory for Y-memory variables here
+
+    //
+    // Start a relocatable segment for variables in XY-memory
+    //
+    Sys_Mem_Start_Segment(XY_System_Memory_Reserved, \
+                          SYS_MEMSPACE_XY)
+
+    // Allocate memory for XY-memory variables here
+
